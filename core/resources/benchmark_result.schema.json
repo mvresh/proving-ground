@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://provingground.dev/schemas/benchmark_result.schema.json",
+  "title": "BenchmarkResult",
+  "description": "Head-to-head comparison of two or more detectors run over the same scenario set. Each detector entry carries its own metrics and misses. Bound to exact inputs by the shared scenario_set_hash.",
+  "type": "object",
+  "required": ["scenario_set_hash", "detectors", "cost_nano_usd"],
+  "additionalProperties": false,
+  "properties": {
+    "scenario_set_hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "description": "sha256 over the canonical JSON of the scenario set the detectors were run against."
+    },
+    "detectors": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/detectorEntry" },
+      "description": "One entry per detector compared, in a stable order."
+    },
+    "cost_nano_usd": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Total cost of all LLM provider calls made during the benchmark, in nano-USD (1 USD = 1e9). Zero when no paid provider was used."
+    }
+  },
+  "$defs": {
+    "detectorEntry": {
+      "type": "object",
+      "required": ["detector_id", "metrics", "misses"],
+      "additionalProperties": false,
+      "properties": {
+        "detector_id": { "type": "string" },
+        "metrics": { "$ref": "#/$defs/metrics" },
+        "misses": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/miss" }
+        }
+      }
+    },
+    "metrics": {
+      "type": "object",
+      "required": ["catch_rate", "false_positive_rate", "precision", "by_type"],
+      "additionalProperties": false,
+      "properties": {
+        "catch_rate": { "type": "number", "minimum": 0, "maximum": 1 },
+        "false_positive_rate": { "type": "number", "minimum": 0, "maximum": 1 },
+        "precision": { "type": "number", "minimum": 0, "maximum": 1 },
+        "by_type": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "required": ["caught", "total"],
+            "additionalProperties": false,
+            "properties": {
+              "caught": { "type": "integer", "minimum": 0 },
+              "total": { "type": "integer", "minimum": 0 }
+            }
+          }
+        }
+      }
+    },
+    "miss": {
+      "type": "object",
+      "required": ["scenario_id", "manipulation_type", "explanation"],
+      "additionalProperties": false,
+      "properties": {
+        "scenario_id": { "type": "string" },
+        "manipulation_type": { "type": "string" },
+        "explanation": { "type": "string" }
+      }
+    }
+  }
+}

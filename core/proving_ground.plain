@@ -1,0 +1,449 @@
+---
+description: 'ProvingGround core — generate labelled order-book scenarios with injected spoofing, run a detector, and score it.'
+import:
+  - python-console-app-template
+---
+
+> ProvingGround core service (M1). A command-line app that manufactures labelled reality for
+> market-manipulation detection: it generates synthetic order-book scenarios with injected,
+> labelled spoofing (ground truth known by construction), runs a detector against them, and
+> scores catch rate / false positives / misses. Each functional spec below adds one
+> subcommand, so the app grows command-by-command and every capability is observable.
+
+***definitions***
+
+- :Market: is a trading pair identifier such as "SUI/USDC".
+
+- :OrderEvent: is a single order-book event. Its exact structure is defined by the linked
+  resource [scenario.schema.json](resources/scenario.schema.json) under the orderEvent
+  definition.
+  - :OrderEvent: has an event id that is unique within its scenario.
+  - :OrderEvent: has a timestamp in milliseconds from the start of its scenario.
+  - :OrderEvent: has a type that is one of "place", "cancel", "modify" or "trade".
+  - :OrderEvent: has a side that is either "bid" or "ask", a positive price, a positive size,
+    and an owner id identifying the trader.
+
+- :GroundTruth: is the known truth about an order-book scenario, defined by the groundTruth definition
+  in [scenario.schema.json](resources/scenario.schema.json).
+  - :GroundTruth: has a label that is either "clean" or "manipulated".
+  - :GroundTruth: names the manipulation type ("spoofing" or null when clean), the list of
+    implicated event id values, and a plain-language explanation.
+
+- :Scenario: is a single labelled order-book scenario over a :Market:, defined by
+  [scenario.schema.json](resources/scenario.schema.json). A :Scenario: is either clean or
+  contains exactly one injected, labelled manipulation.
+  - :Scenario: has a scenario id that is unique within its scenario set.
+  - :Scenario: contains an ordered list of :OrderEvent: sorted by ascending timestamp.
+  - :Scenario: has a :GroundTruth:.
+
+- :ScenarioSet: is an ordered list of :Scenario: produced together for one benchmark run.
+
+- :Seed: is an integer that makes all generation deterministic: the same :Seed: and
+  parameters always produce the identical :ScenarioSet:.
+
+- :SpoofingPattern: is the injected manipulation in this milestone.
+  - A trader places one or more large :OrderEvent: orders on one side, away from the mid
+    price, creating false pressure.
+  - The same trader cancels those orders shortly afterwards without them being filled.
+  - The implicated event id values are the place and cancel events of those large orders.
+
+- :Detector: reads a :Scenario: and decides whether it contains manipulation, producing a
+  :DetectorOutput:.
+
+- :DetectorOutput: is a detector's verdict on one :Scenario:.
+  - It has the scenario id, a boolean "flagged", a "predicted_type" (or null), the list of
+    flagged event id values, a "confidence" between 0 and 1, and a "rationale" string.
+
+- :HeuristicDetector: is a :Detector: that flags a :Scenario: using simple rules over the
+  :OrderEvent: list, with no machine learning. It is deliberately imperfect.
+
+- :Metrics: are the scores for one run, defined by the metrics definition in
+  [run_result.schema.json](resources/run_result.schema.json): catch rate, false-positive
+  rate, precision, and a per-manipulation-type breakdown.
+
+- :ScenarioSetHash: is the lowercase hex SHA-256 over the canonical JSON serialization of a
+  :ScenarioSet:. It binds a scored run to the exact inputs it was scored against.
+
+- :RunResult: is the scored outcome of running one :Detector: against a :ScenarioSet:,
+  defined by [run_result.schema.json](resources/run_result.schema.json). It carries the run
+  id, detector id, timestamp, the :ScenarioSetHash:, the :Metrics:, and the list of misses.
+
+- :NanoUsdCost: is the cost of one or more language-model calls in nano-USD, where one US
+  dollar is one billion nano-USD. It is always a non-negative integer.
+
+- :LLMProvider: is an abstraction over a chat-style language-model service.
+  - It can list the model identifiers it offers.
+  - It can produce a completion: given a system instruction, a user message, and a model
+    identifier, it returns the model's text answer together with the input and output token
+    counts of the call.
+  - From those token counts it can compute the :NanoUsdCost: of the call.
+
+- :StubProvider: is a deterministic, offline :LLMProvider: used by default and in all tests.
+  - It makes no network calls.
+  - It offers a fixed list of model identifiers.
+  - Its completions are a deterministic function of the request, so the same request always
+    yields the same answer, and every call reports a :NanoUsdCost: of zero.
+
+- :FlockProvider: is a :LLMProvider: that calls the FLock inference service, which exposes an
+  OpenAI-compatible chat-completions interface. It is selected explicitly, never by default.
+  - The per-token prices it uses to compute :NanoUsdCost: are defined by
+    [flock_pricing.json](resources/flock_pricing.json).
+
+- :LLMDetector: is a :Detector: that uses an :LLMProvider: to classify a :Scenario: and
+  produce a :DetectorOutput:. Its detector id is "llm_v1".
+
+- :BenchmarkResult: is a head-to-head comparison of two detectors over one :ScenarioSet:,
+  defined by [benchmark_result.schema.json](resources/benchmark_result.schema.json). It
+  carries the :ScenarioSetHash:, one entry per detector (each with its :Metrics: and misses),
+  and the total :NanoUsdCost: of the language-model calls made during the benchmark.
+
+- :BlobStore: is an abstraction for content-addressed blob storage.
+  - It can store a sequence of bytes and return a blob id that identifies those bytes.
+  - It can fetch the bytes for a previously stored blob id.
+
+- :StubBlobStore: is a deterministic, offline :BlobStore: used by default and in all tests.
+  - It makes no network calls.
+  - It persists each blob as a file inside a directory named ".pg_blobs" in the current
+    working directory, so a blob stored by one command can be fetched by a later command.
+  - Its blob id is a deterministic function of the bytes, so identical bytes always get the
+    same blob id.
+
+- :WalrusBlobStore: is a :BlobStore: backed by the Walrus testnet, a public decentralized
+  storage network. It is selected explicitly, never by default.
+  - Storing bytes uploads them to the Walrus publisher; fetching reads them from the Walrus
+    aggregator by blob id.
+
+- :Attestation: is a tamper-evident record that one :RunResult: was stored in a :BlobStore:,
+  defined by [attestation.schema.json](resources/attestation.schema.json). It carries the run
+  id, the :ScenarioSetHash:, which store was used, the blob id, and the SHA-256 of the exact
+  stored bytes.
+
+***implementation reqs***
+
+- :Implementation: should be in Python 3 using only the standard library, so the app runs
+  with no third-party dependencies.
+
+- :MainExecutableFile: of :App: should be called "proving_ground.py".
+
+- :App: is invoked as "python proving_ground.py <command> [options]". Unknown commands and
+  invalid options cause :App: to print an error to standard error and exit with a non-zero
+  status.
+
+- All commands read any JSON input from standard input and write their JSON result to
+  standard output, formatted as a single JSON document.
+
+- All randomness must derive from the provided :Seed: so runs are reproducible.
+
+- Canonical JSON serialization (used for hashing and output) must sort object keys and use
+  compact separators, so the same data always serializes to identical bytes.
+
+- :Implementation: should include :UnitTests: using the Unittest framework. If :UnitTests:
+  are placed in a subfolder, include __init__.py so they are discoverable.
+
+- :FlockProvider: must perform its HTTP calls using only the Python standard library (the
+  urllib request module), so the no-third-party-dependency rule still holds.
+  - It reads the service base URL from the FLOCK_BASE_URL environment variable, defaulting to
+    "https://api.flock.io/v1" when unset.
+  - It reads the API key from the FLOCK_API_KEY environment variable and sends it in the
+    "x-litellm-api-key" request header on every call.
+  - When asking for a strict JSON answer it sends the OpenAI-compatible request field
+    "response_format" set to an object whose "type" is "json_object".
+
+- The per-token prices baked into :FlockProvider: for computing :NanoUsdCost: must be taken
+  verbatim from the pricing table named by the :FlockProvider: concept.
+  - For a model absent from that table, the :NanoUsdCost: is treated as zero rather than
+    raising an error.
+
+- :UnitTests: for :FlockProvider: must replace the standard-library HTTP call with a test
+  double (a mock) and must never make a real network request.
+  - They cover the happy path, a missing API key, and a non-success HTTP status from the
+    service.
+
+- :UnitTests: for the :StubProvider: and :LLMDetector: must assert determinism: identical
+  inputs produce identical outputs across repeated calls.
+
+- When the :LLMDetector: uses the :FlockProvider:, its default model is the finance-native
+  reasoning model "qwen3-235b-a22b-thinking-qwfin", and it requests a strict JSON answer.
+  - The model is asked to return a JSON object with the boolean "flagged", a "predicted_type",
+    a list of "flagged_event_ids", a "confidence" between 0 and 1, and a short "rationale".
+
+- :WalrusBlobStore: must perform its HTTP calls using only the Python standard library (the
+  urllib request module), so the no-third-party-dependency rule still holds.
+  - It reads the publisher base URL from the WALRUS_PUBLISHER_URL environment variable,
+    defaulting to "https://publisher.walrus-testnet.walrus.space" when unset.
+  - It reads the aggregator base URL from the WALRUS_AGGREGATOR_URL environment variable,
+    defaulting to "https://aggregator.walrus-testnet.walrus.space" when unset.
+  - Storing bytes issues an HTTP PUT to the publisher path "/v1/blobs" with the query string
+    "epochs=5&deletable=false" and the bytes as the request body.
+  - The blob id is read from the response field "newlyCreated.blobObject.blobId" when present,
+    otherwise from "alreadyCertified.blobId".
+  - Fetching bytes issues an HTTP GET to the aggregator path "/v1/blobs/" followed by the blob
+    id, returning the raw response body bytes.
+  - Every request :WalrusBlobStore: makes must set a "User-Agent" header of "ProvingGround/1.0".
+    The Walrus aggregator rejects the standard library's default user agent with HTTP 403, so a
+    custom user agent is required for fetches to succeed.
+
+- :UnitTests: for :WalrusBlobStore: must replace the standard-library HTTP call with a test
+  double and must never make a real network request, covering both response shapes (newly
+  created and already certified) and a non-success HTTP status.
+
+- Command code must obtain the :LLMProvider: and the :BlobStore: by calling their factory
+  functions as attributes of the module that defines them, not through a name bound by a
+  from-style import.
+  - This gives :UnitTests: a single seam: patching the factory in its defining module is then
+    observed by every call site.
+
+- :UnitTests: that exercise a provider-error or store-error path must be hermetic.
+  - They patch the relevant factory to return a fake :LLMProvider: or :BlobStore: that raises.
+  - They must not read any environment variable and must not make a network call.
+  - They assert the command exits with a non-zero status and that the failing component's error
+    text appears on standard error.
+
+- The :StubBlobStore: blob id is the lowercase hex SHA-256 of the bytes, prefixed with
+  "stub_". Its blob files are named by blob id inside the ".pg_blobs" directory.
+
+***test reqs***
+
+- :ConformanceTests: of :App: should be implemented in Python using the Unittest framework
+  and will be run using "python -m unittest discover".
+
+- :ConformanceTests: must drive :App: only through its command-line interface, standard input
+  and standard output — never by importing its internal modules.
+
+- :ConformanceTests: must use a fixed :Seed: so expected outputs are deterministic.
+
+- :ConformanceTests: must be implemented and executed - do not use unittest.skip() or any
+  other test-skipping functionality.
+
+- :ConformanceTests: must not access the network or the filesystem outside the working
+  directory.
+
+- The current working directory contains :MainExecutableFile:.
+
+- :ConformanceTests: must exercise every language-model-backed command using the default
+  :StubProvider: only.
+  - They must never select the "flock" provider and never make a network call.
+  - The live :FlockProvider: path is validated out-of-band against the real service, not by
+    :ConformanceTests:.
+
+- :ConformanceTests: must exercise every blob-store-backed command using the default
+  :StubBlobStore: only.
+  - They must never select the "walrus" store and never make a network call.
+  - The live :WalrusBlobStore: path is validated out-of-band against the real testnet.
+
+***functional specs***
+
+- The "generate" command produces a single clean :Scenario: from a stochastic order-flow
+  model. It accepts a :Seed: option and an option for the approximate number of
+  :OrderEvent: to produce, and prints the :Scenario: as JSON.
+  - The generated :Scenario: has a clean :GroundTruth: with an empty implicated-events list
+    and a manipulation type of null.
+  - The :OrderEvent: list is sorted by ascending timestamp and contains plausible bids and
+    asks around a moving mid price.
+
+  ***acceptance tests***
+
+  - Running "python proving_ground.py generate --seed 42 --events 60" exits with status 0 and
+    prints a JSON object that validates against
+    [scenario.schema.json](resources/scenario.schema.json).
+  - The printed :Scenario: has ground_truth.label equal to "clean" and an empty
+    ground_truth.implicated_event_ids list.
+  - Running the same command twice with "--seed 42" prints byte-identical output.
+
+- The "inject" command reads a clean :Scenario: from standard input and returns a manipulated
+  :Scenario: by planting a :SpoofingPattern:. It accepts a :Seed: option.
+  - The returned :Scenario: keeps the original clean events and adds the spoof place and
+    cancel :OrderEvent: orders, with the list re-sorted by ascending timestamp.
+  - The returned :GroundTruth: has label "manipulated", manipulation type "spoofing", the
+    implicated event id values of the injected orders, and a plain-language explanation
+    naming the trader, the side, how far from mid, and that the orders were cancelled before
+    filling.
+
+  ***acceptance tests***
+
+  - Piping the output of "generate --seed 1 --events 50" into "inject --seed 1" exits 0 and
+    prints a :Scenario: that validates against
+    [scenario.schema.json](resources/scenario.schema.json).
+  - The printed :Scenario: has ground_truth.label "manipulated", ground_truth.manipulation_type
+    "spoofing", and a non-empty ground_truth.implicated_event_ids list.
+  - Every event id in implicated_event_ids refers to an :OrderEvent: present in the scenario.
+
+- The "generate-set" command produces a :ScenarioSet: as a JSON array. It accepts a :Seed:,
+  a count of scenarios, and a manipulated fraction between 0 and 1; the requested fraction of
+  scenarios are manipulated by injecting a :SpoofingPattern: and the rest are clean.
+  - Each :Scenario: has a distinct scenario id.
+  - The set is deterministic for a given :Seed:, count and fraction.
+
+  ***acceptance tests***
+
+  - Running "python proving_ground.py generate-set --seed 7 --count 10 --manipulated-fraction 0.4"
+    exits 0 and prints a JSON array of 10 scenarios, each validating against
+    [scenario.schema.json](resources/scenario.schema.json).
+  - Exactly 4 of the 10 scenarios have ground_truth.label "manipulated".
+  - All 10 scenario id values are distinct, and re-running with the same options prints
+    byte-identical output.
+
+- The "detect" command reads a :ScenarioSet: from standard input, runs the
+  :HeuristicDetector: over each :Scenario:, and prints a JSON array of :DetectorOutput:, one
+  per scenario in the same order.
+  - The :HeuristicDetector: flags a :Scenario: when one owner id places orders whose total
+    size is large relative to the book and cancels them shortly afterwards without a fill on
+    those orders, setting predicted_type to "spoofing" and listing those event id values.
+  - It is deliberately imperfect: it may miss subtler spoofs and need not be tuned to catch
+    every manipulated :Scenario:.
+
+  ***acceptance tests***
+
+  - Piping a "generate-set --seed 7 --count 10 --manipulated-fraction 0.4" set into
+    "detect" exits 0 and prints a JSON array of 10 :DetectorOutput: objects in the same order
+    as the input scenarios.
+  - Each :DetectorOutput: has a "flagged" boolean, a "confidence" between 0 and 1, and, when
+    flagged is true, a non-empty flagged_event_ids list and predicted_type "spoofing".
+
+- The "score" command reads a JSON object with a :ScenarioSet: and its matching list of
+  :DetectorOutput: from standard input, compares each verdict to the :GroundTruth:, and prints
+  the :Metrics: plus the list of misses as JSON.
+  - Catch rate is the fraction of manipulated scenarios that were flagged; false-positive rate
+    is the fraction of clean scenarios that were flagged; precision is true positives over all
+    flagged scenarios; the per-type breakdown reports caught and total for "spoofing".
+  - A miss is a manipulated :Scenario: that was not flagged, reported with its scenario id,
+    manipulation type, and the :GroundTruth: explanation.
+
+  ***acceptance tests***
+
+  - Given a hand-built input where 4 scenarios are manipulated and the detector flagged 3 of
+    them and flagged 0 clean scenarios, "score" prints catch_rate 0.75 and
+    false_positive_rate 0.0.
+  - The misses list contains exactly the manipulated scenarios that were not flagged, each
+    carrying the ground-truth explanation copied from its scenario.
+
+- The "run" command performs the whole benchmark loop end to end: it generates a
+  :ScenarioSet:, runs the :HeuristicDetector:, scores the result, and prints a :RunResult: as
+  JSON. It accepts a :Seed:, a count, a manipulated fraction, and a detector id (defaulting to
+  "heuristic_v1").
+  - The :RunResult: includes a unique run id, the detector id, an ISO-8601 timestamp, the
+    :ScenarioSetHash: of the generated set, the :Metrics:, and the misses; walrus_blob_id and
+    sui_object_id are null at this stage.
+
+  ***acceptance tests***
+
+  - Running "python proving_ground.py run --seed 7 --count 10 --manipulated-fraction 0.4"
+    exits 0 and prints a JSON object that validates against
+    [run_result.schema.json](resources/run_result.schema.json).
+  - The printed scenario_set_hash is 64 lowercase hexadecimal characters, and metrics.by_type
+    reports a "spoofing" total of 4.
+  - Re-running with the same options prints an identical scenario_set_hash.
+
+- The "models" command lists the model identifiers offered by the selected :LLMProvider:,
+  printed as a JSON array of strings.
+  - It accepts a "--provider" option selecting the :LLMProvider:: "stub" (the default) or
+    "flock".
+  - With the default :StubProvider: it prints a fixed, deterministic list and makes no network
+    call.
+  - The :StubProvider: list includes the identifiers "stub-detector-v1" and "stub-generator-v1".
+
+  ***acceptance tests***
+
+  - Running "python proving_ground.py models" exits 0 and prints a JSON array of strings that
+    includes "stub-detector-v1".
+  - Running the same command twice prints byte-identical output.
+
+- Selecting "--provider flock" makes the language-model commands use the :FlockProvider:
+  instead of the :StubProvider:.
+  - The :FlockProvider: reads its base URL and API key from the environment as described in the
+    implementation reqs, and lists models by calling the service's "/models" endpoint.
+  - When the FLOCK_API_KEY environment variable is not set, any command using "--provider flock"
+    prints a clear error to standard error and exits with a non-zero status, without crashing.
+
+  ***acceptance tests***
+
+  - With FLOCK_API_KEY unset in the environment, running "python proving_ground.py models
+    --provider flock" exits with a non-zero status and writes a non-empty message to standard
+    error.
+  - That same invocation prints nothing resembling a successful JSON array to standard output.
+
+- The "detect" command gains a "--detector" option choosing which :Detector: to run, and a
+  "--provider" option choosing the :LLMProvider: for the :LLMDetector:.
+  - "--detector" selects "heuristic" (the default, the existing :HeuristicDetector:) or "llm"
+    (the :LLMDetector:); "--provider" selects "stub" (the default) or "flock".
+  - The :LLMDetector: asks the :LLMProvider: to classify each :Scenario: and parses the model's
+    JSON answer into a :DetectorOutput:.
+  - With the :StubProvider:, the :LLMDetector: classifies by a fixed deterministic rule: it
+    flags a :Scenario: as "spoofing" when some single place :OrderEvent: has a size at least
+    five times the median size of all that scenario's events, listing that order's place event
+    id; otherwise it does not flag the scenario.
+  - The :LLMDetector: keeps a running total of the :NanoUsdCost: of every :LLMProvider:
+    completion it makes. The total starts at zero and grows by each call's cost. With the
+    :StubProvider: it stays zero.
+  - If an :LLMProvider: completion fails (for example the service rejects the request or is
+    unreachable), the :LLMDetector: must not silently return an unflagged verdict. The "detect"
+    command instead writes the provider error to standard error and exits with a non-zero
+    status, so a failed call is never reported as a clean miss.
+  - The output is a JSON array of :DetectorOutput:, one per scenario in input order, the same
+    shape the :HeuristicDetector: produces.
+
+  ***acceptance tests***
+
+  - Piping a "generate-set --seed 7 --count 10 --manipulated-fraction 0.4" set into
+    "detect --detector llm" exits 0 and prints a JSON array of 10 :DetectorOutput: in input
+    order, each with a boolean "flagged" and a "confidence" between 0 and 1.
+  - Re-running that same piped command prints byte-identical output.
+
+- The "benchmark" command runs both detectors over one generated :ScenarioSet: and prints a
+  :BenchmarkResult: as JSON.
+  - It accepts a :Seed:, a count, a manipulated fraction, and a "--provider" option for the
+    :LLMDetector: ("stub" by default).
+  - It generates the :ScenarioSet:, runs the :HeuristicDetector: and the :LLMDetector: over it,
+    scores each, and reports per-detector :Metrics: and misses plus the shared
+    :ScenarioSetHash:.
+  - The detector entries appear in a stable order: the :HeuristicDetector: ("heuristic_v1")
+    first, then the :LLMDetector: ("llm_v1").
+  - It reports the total :NanoUsdCost: of the :LLMDetector: calls as cost_nano_usd, computed as
+    the sum of the :NanoUsdCost: of every :LLMProvider: completion the :LLMDetector: made during
+    the benchmark. This is zero for the :StubProvider:.
+  - If an :LLMProvider: completion fails during the benchmark, the command writes the provider
+    error to standard error and exits with a non-zero status rather than printing a misleading
+    :BenchmarkResult:.
+
+  ***acceptance tests***
+
+  - Running "python proving_ground.py benchmark --seed 7 --count 10 --manipulated-fraction 0.4"
+    exits 0 and prints a JSON object that validates against
+    [benchmark_result.schema.json](resources/benchmark_result.schema.json).
+  - The result has exactly two detector entries with detector_id "heuristic_v1" then "llm_v1",
+    each reporting a "spoofing" total of 4, and cost_nano_usd equal to 0.
+  - Re-running with the same options prints an identical scenario_set_hash.
+
+- The "attest" command reads a :RunResult: from standard input, stores it in the selected
+  :BlobStore:, and prints an :Attestation: as JSON.
+  - It accepts a "--store" option selecting the :BlobStore:: "stub" (the default) or "walrus".
+  - It serializes the :RunResult: to canonical JSON bytes, computes their SHA-256 as
+    content_sha256, and stores those exact bytes in the :BlobStore: to obtain the blob id.
+  - The printed :Attestation: copies the run id and the :ScenarioSetHash: from the
+    :RunResult:, and records which store was used, the blob id, and content_sha256.
+
+  ***acceptance tests***
+
+  - Piping a "run --seed 7 --count 10 --manipulated-fraction 0.4" result into "attest" exits 0
+    and prints a JSON object that validates against
+    [attestation.schema.json](resources/attestation.schema.json).
+  - The printed store is "stub", content_sha256 is 64 lowercase hex characters, and run_id
+    equals the run_id of the piped :RunResult:.
+  - Attesting the same :RunResult: bytes twice prints the same blob_id and content_sha256.
+
+- The "verify" command reads an :Attestation: from standard input, re-fetches the stored bytes
+  from the selected :BlobStore:, recomputes their SHA-256, and reports whether it matches.
+  - It accepts a "--store" option selecting the :BlobStore:: "stub" (the default) or "walrus".
+  - It fetches the bytes for the attestation's blob id, computes their SHA-256 as
+    computed_sha256, and compares it to the attestation's content_sha256.
+  - It prints a JSON object with a boolean "verified", the "blob_id", the "computed_sha256",
+    and the "expected_sha256" (the attestation's content_sha256).
+  - When the hashes match it exits with status 0; when they differ — meaning the stored bytes
+    were tampered with — "verified" is false and it exits with a non-zero status.
+
+  ***acceptance tests***
+
+  - Piping an :Attestation: produced by "attest" (default stub store) into "verify" exits 0,
+    prints "verified" true, and computed_sha256 equals expected_sha256.
+  - If the stored blob bytes are altered after attestation, "verify" for that blob prints
+    "verified" false and exits with a non-zero status.

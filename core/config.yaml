@@ -1,0 +1,12 @@
+# Codeplain render config for the ProvingGround core service.
+# Run from this folder:  python /path/to/plain2code_client/plain2code.py proving_ground.plain
+# Paths are relative to this directory (the CWD at render time).
+
+unittests-script: ./scripts/run_unittests_python.sh
+conformance-tests-script: ./scripts/run_conformance_tests_python.sh
+
+# Copy the final rendered code out to ./build for easy running/inspection.
+copy-build: true
+build-dest: build
+
+verbose: true

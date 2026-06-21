@@ -1,0 +1,8 @@
+{
+    "error": {
+        "message": "litellm.BadRequestError: OpenAIException - <400> InternalError.Algo.InvalidParameter: 'messages' must contain the word 'json' in some form, to use 'response_format' of type 'json_object'.. Received Model Group=qwen3-30b-a3b-instruct-2507\nAvailable Model Group Fallbacks=None",
+        "type": "invalid_request_error",
+        "param": null,
+        "code": "400"
+    }
+}

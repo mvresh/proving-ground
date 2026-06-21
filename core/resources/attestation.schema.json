@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://provingground.dev/schemas/attestation.schema.json",
+  "title": "Attestation",
+  "description": "A tamper-evident record that a specific RunResult was stored in a content-addressed blob store. Verification re-fetches the blob by id, recomputes its hash, and asserts it matches content_sha256.",
+  "type": "object",
+  "required": ["run_id", "scenario_set_hash", "store", "blob_id", "content_sha256"],
+  "additionalProperties": false,
+  "properties": {
+    "run_id": {
+      "type": "string",
+      "pattern": "^run_[0-9a-zA-Z]+$",
+      "description": "The run_id of the attested RunResult."
+    },
+    "scenario_set_hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "description": "Copied from the attested RunResult; binds the attestation to the exact scored inputs."
+    },
+    "store": {
+      "type": "string",
+      "enum": ["stub", "walrus"],
+      "description": "Which blob store holds the bytes."
+    },
+    "blob_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Content-addressed identifier returned by the blob store. For Walrus this is the blobId; for the stub it is a deterministic local id."
+    },
+    "content_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "description": "Lowercase hex SHA-256 of the exact canonical RunResult bytes that were stored. The integrity anchor."
+    }
+  }
+}

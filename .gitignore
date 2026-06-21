@@ -1,0 +1,26 @@
+# Secrets — never commit
+.env
+.env.local
+*.key
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pg_blobs/
+
+# Node / Next.js
+node_modules/
+.next/
+out/
+dist/
+.vercel/
+
+# Codeplain renderer working dirs (generated; ./core/build is the committed copy)
+core/plain_modules/
+core/conformance_tests/
+core/python_plain_modules/
+core/python_build/
+
+# OS
+.DS_Store

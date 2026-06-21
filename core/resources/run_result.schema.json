@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://provingground.dev/schemas/run_result.schema.json",
+  "title": "RunResult",
+  "description": "The scored outcome of running one detector against a scenario set. This is the object written to Walrus as a tamper-evident benchmark record.",
+  "type": "object",
+  "required": ["run_id", "detector_id", "timestamp", "scenario_set_hash", "metrics", "misses"],
+  "additionalProperties": false,
+  "properties": {
+    "run_id": { "type": "string", "pattern": "^run_[0-9a-zA-Z]+$" },
+    "detector_id": { "type": "string" },
+    "timestamp": { "type": "string", "format": "date-time", "description": "ISO-8601" },
+    "scenario_set_hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "description": "sha256 over the canonical JSON of the scenario set. Anchors the benchmark to exact inputs."
+    },
+    "metrics": { "$ref": "#/$defs/metrics" },
+    "misses": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/miss" },
+      "description": "Manipulated scenarios the detector failed to flag."
+    },
+    "walrus_blob_id": { "type": ["string", "null"], "default": null },
+    "sui_object_id": { "type": ["string", "null"], "default": null }
+  },
+  "$defs": {
+    "metrics": {
+      "type": "object",
+      "required": ["catch_rate", "false_positive_rate", "precision", "by_type"],
+      "additionalProperties": false,
+      "properties": {
+        "catch_rate": { "type": "number", "minimum": 0, "maximum": 1, "description": "Recall on manipulated scenarios" },
+        "false_positive_rate": { "type": "number", "minimum": 0, "maximum": 1, "description": "Flags on clean scenarios" },
+        "precision": { "type": "number", "minimum": 0, "maximum": 1 },
+        "by_type": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "required": ["caught", "total"],
+            "additionalProperties": false,
+            "properties": {
+              "caught": { "type": "integer", "minimum": 0 },
+              "total": { "type": "integer", "minimum": 0 }
+            }
+          }
+        }
+      }
+    },
+    "miss": {
+      "type": "object",
+      "required": ["scenario_id", "manipulation_type", "explanation"],
+      "additionalProperties": false,
+      "properties": {
+        "scenario_id": { "type": "string" },
+        "manipulation_type": { "type": "string" },
+        "explanation": { "type": "string" }
+      }
+    }
+  }
+}

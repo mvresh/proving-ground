@@ -1,0 +1,11 @@
+{
+    "_comment": "Alternative PUT response when the identical blob already exists on Walrus. The blob id is read from alreadyCertified.blobId instead of newlyCreated.blobObject.blobId.",
+    "alreadyCertified": {
+        "blobId": "eA1zmsx66rcRsrdjnwRFb0RY5CgwNjXqNxSNSyIcw80",
+        "event": {
+            "txDigest": "...",
+            "eventSeq": "0"
+        },
+        "endEpoch": 435
+    }
+}

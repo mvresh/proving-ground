@@ -1,0 +1,86 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" font-family="-apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0a0f1a"/>
+      <stop offset="1" stop-color="#070910"/>
+    </linearGradient>
+    <radialGradient id="glow1" cx="0.82" cy="0.05" r="0.6">
+      <stop offset="0" stop-color="#38bdf8" stop-opacity="0.18"/>
+      <stop offset="1" stop-color="#38bdf8" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glow2" cx="0.05" cy="0.1" r="0.5">
+      <stop offset="0" stop-color="#a855f7" stop-opacity="0.16"/>
+      <stop offset="1" stop-color="#a855f7" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="title" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#e6edf3"/>
+      <stop offset="1" stop-color="#7dd3fc"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <rect width="1200" height="630" fill="url(#glow1)"/>
+  <rect width="1200" height="630" fill="url(#glow2)"/>
+
+  <!-- order-book motif: faint bars, with two red "spoof" bars -->
+  <g transform="translate(70,120)" opacity="0.85">
+    <g fill="#1f2a3a">
+      <rect x="0"   y="170" width="22" height="60"  rx="3"/>
+      <rect x="34"  y="140" width="22" height="90"  rx="3"/>
+      <rect x="68"  y="155" width="22" height="75"  rx="3"/>
+      <rect x="102" y="110" width="22" height="120" rx="3"/>
+      <rect x="136" y="130" width="22" height="100" rx="3"/>
+      <rect x="204" y="120" width="22" height="110" rx="3"/>
+      <rect x="238" y="150" width="22" height="80"  rx="3"/>
+      <rect x="272" y="100" width="22" height="130" rx="3"/>
+    </g>
+    <!-- spoof: tall, far-from-mid, then cancelled -->
+    <rect x="170" y="10" width="22" height="220" rx="3" fill="#ef4444" fill-opacity="0.85"/>
+    <text x="181" y="-2" fill="#fca5a5" font-size="13" text-anchor="middle" font-family="monospace">⚑ spoof</text>
+  </g>
+
+  <!-- eyebrow -->
+  <g transform="translate(70,90)">
+    <circle cx="6" cy="-4" r="6" fill="#38bdf8"/>
+    <text x="22" y="0" fill="#7dd3fc" font-size="20" letter-spacing="4" font-weight="600">MANIPULATION EVAL HARNESS</text>
+  </g>
+
+  <!-- title -->
+  <text x="68" y="300" fill="url(#title)" font-size="104" font-weight="800" letter-spacing="-2">ProvingGround</text>
+
+  <!-- tagline -->
+  <text x="70" y="360" fill="#aebbcc" font-size="29" font-weight="500">Proving market-surveillance models work — by manufacturing</text>
+  <text x="70" y="398" fill="#aebbcc" font-size="29" font-weight="500">the labelled reality they're missing.</text>
+
+  <!-- pipeline -->
+  <g transform="translate(70,470)" font-family="monospace" font-size="22" font-weight="600">
+    <g fill="#0d1117">
+      <rect x="0"    y="0" width="150" height="50" rx="10" stroke="#2b3a4f"/>
+      <rect x="182"  y="0" width="120" height="50" rx="10" stroke="#2b3a4f"/>
+      <rect x="334"  y="0" width="150" height="50" rx="10" stroke="#2b3a4f"/>
+      <rect x="516"  y="0" width="120" height="50" rx="10" stroke="#2b3a4f"/>
+      <rect x="668"  y="0" width="150" height="50" rx="10" stroke="#7c3aed" stroke-opacity="0.7"/>
+      <rect x="850"  y="0" width="150" height="50" rx="10" stroke="#10b981" stroke-opacity="0.7"/>
+    </g>
+    <g fill="#cdd9e5" text-anchor="middle">
+      <text x="75"  y="32">generate</text>
+      <text x="242" y="32">inject</text>
+      <text x="409" y="32">detect</text>
+      <text x="576" y="32">score</text>
+      <text x="743" y="32" fill="#c4b5fd">attest</text>
+      <text x="925" y="32" fill="#6ee7b7">verify</text>
+    </g>
+    <g fill="#3b4d63" font-size="24" text-anchor="middle">
+      <text x="166" y="31">→</text>
+      <text x="318" y="31">→</text>
+      <text x="500" y="31">→</text>
+      <text x="652" y="31">→</text>
+      <text x="834" y="31">→</text>
+    </g>
+  </g>
+
+  <!-- footer: sponsors -->
+  <text x="70" y="590" fill="#5b6b7e" font-size="19" font-family="monospace" letter-spacing="1">
+    Codeplain · FLock · Sui / Walrus · Solvimon · BGA
+  </text>
+</svg>

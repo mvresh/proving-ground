@@ -1,0 +1,14 @@
+{
+  "newlyCreated": {
+    "blobObject": {
+      "id": "0x9330fc9b200fd450fba5628e8efac232f34e4200eac97ba3c6a3d01f90a3f34a",
+      "registeredEpoch": 434,
+      "blobId": "eA1zmsx66rcRsrdjnwRFb0RY5CgwNjXqNxSNSyIcw80",
+      "size": 42,
+      "encodingType": "RS2",
+      "certifiedEpoch": null,
+      "deletable": true
+    },
+    "cost": 545769
+  }
+}

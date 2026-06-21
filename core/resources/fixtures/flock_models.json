@@ -1,0 +1,185 @@
+{
+    "data": [
+        {
+            "id": "deepseek-v4-pro-dslife",
+            "object": "model",
+            "created": 1677610602,
+            "owned_by": "openai"
+        },
+        {
+            "id": "gemini-3.5-flash-flocklife",
+            "object": "model",
+            "created": 1677610602,
+            "owned_by": "openai"
+        },
+        {
+            "id": "gemini-3.5-flash-cheap",
+            "object": "model",
+            "created": 1677610602,
+            "owned_by": "openai"
+        },
+        {
+            "id": "gemini-3.1-pro-deai",
+            "object": "model",
+            "created": 1677610602,
+            "owned_by": "openai"
+        },
+        {
+            "id": "kimi-k2.6-vc",
+            "object": "model",
+            "created": 1677610602,
+            "owned_by": "openai"
+        },
+        {
+            "id": "kimi-k2.6-llm",
+            "object": "model",
+            "created": 1677610602,
+            "owned_by": "openai"
+        },
+        {
+            "id": "deepseek-v4-flash-dsikh",
+            "object": "model",
+            "created": 1677610602,
+            "owned_by": "openai"
+        },
+        {
+            "id": "gemini-3-flash-preview",
+            "object": "model",
+            "created": 1677610602,
+            "owned_by": "openai"
+        },
+        {
+            "id": "kimi-k2.6",
+            "object": "model",
+            "created": 1677610602,
+            "owned_by": "openai"
+        },
+        {
+            "id": "kimi-k2.5",
+            "object": "model",
+            "created": 1677610602,
+            "owned_by": "openai"
+        },
+        {
+            "id": "gpt-image-2",
+            "object": "model",
+            "created": 1677610602,
+            "owned_by": "openai"
+        },
+        {
+            "id": "qwen3-30b-a3b-instruct-qmini",
+            "object": "model",
+            "created": 1677610602,
+            "owned_by": "openai"
+        },
+        {
+            "id": "minimax-m2.5",
+            "object": "model",
+            "created": 1677610602,
+            "owned_by": "openai"
+        },
+        {
+            "id": "glm-5",
+            "object": "model",
+            "created": 1677610602,
+            "owned_by": "openai"
+        },
+        {
+            "id": "qwen3-235b-a22b-instruct-2507",
+            "object": "model",
+            "created": 1677610602,
+            "owned_by": "openai"
+        },
+        {
+            "id": "qwen3-30b-a3b-instruct-2507",
+            "object": "model",
+            "created": 1677610602,
+            "owned_by": "openai"
+        },
+        {
+            "id": "qwen3-30b-a3b-instruct-qmxai",
+            "object": "model",
+            "created": 1677610602,
+            "owned_by": "openai"
+        },
+        {
+            "id": "kimi-k2-thinking",
+            "object": "model",
+            "created": 1677610602,
+            "owned_by": "openai"
+        },
+        {
+            "id": "qwen3-235b-a22b-thinking-2507",
+            "object": "model",
+            "created": 1677610602,
+            "owned_by": "openai"
+        },
+        {
+            "id": "deepseek-v3.2",
+            "object": "model",
+            "created": 1677610602,
+            "owned_by": "openai"
+        },
+        {
+            "id": "minimax-m2.1",
+            "object": "model",
+            "created": 1677610602,
+            "owned_by": "openai"
+        },
+        {
+            "id": "minimax-m2.7",
+            "object": "model",
+            "created": 1677610602,
+            "owned_by": "openai"
+        },
+        {
+            "id": "qwen3-30b-a3b-instruct-coding",
+            "object": "model",
+            "created": 1677610602,
+            "owned_by": "openai"
+        },
+        {
+            "id": "qwen3-235b-a22b-thinking-qwfin",
+            "object": "model",
+            "created": 1677610602,
+            "owned_by": "openai"
+        },
+        {
+            "id": "deepseek-v3.2-dsikh",
+            "object": "model",
+            "created": 1677610602,
+            "owned_by": "openai"
+        },
+        {
+            "id": "gemini-3.1-pro-preview",
+            "object": "model",
+            "created": 1677610602,
+            "owned_by": "openai"
+        },
+        {
+            "id": "deepseek-v4-pro",
+            "object": "model",
+            "created": 1677610602,
+            "owned_by": "openai"
+        },
+        {
+            "id": "gemini-3.1-flash-image-preview",
+            "object": "model",
+            "created": 1677610602,
+            "owned_by": "openai"
+        },
+        {
+            "id": "deepseek-v4-flash",
+            "object": "model",
+            "created": 1677610602,
+            "owned_by": "openai"
+        },
+        {
+            "id": "gemini-3.5-flash",
+            "object": "model",
+            "created": 1677610602,
+            "owned_by": "openai"
+        }
+    ],
+    "object": "list"
+}

@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://provingground.dev/schemas/scenario.schema.json",
+  "title": "Scenario",
+  "description": "A single labelled order-book scenario. Either clean or containing one injected, labelled manipulation. Ground truth is known by construction.",
+  "type": "object",
+  "required": ["scenario_id", "market", "duration_ms", "events", "ground_truth"],
+  "additionalProperties": false,
+  "properties": {
+    "scenario_id": { "type": "string", "pattern": "^scn_[0-9a-zA-Z]+$" },
+    "market": { "type": "string", "description": "Trading pair, e.g. SUI/USDC" },
+    "duration_ms": { "type": "integer", "minimum": 1 },
+    "events": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/orderEvent" }
+    },
+    "ground_truth": { "$ref": "#/$defs/groundTruth" }
+  },
+  "$defs": {
+    "orderEvent": {
+      "type": "object",
+      "required": ["event_id", "ts", "type", "order_id", "side", "price", "size", "owner_id"],
+      "additionalProperties": false,
+      "properties": {
+        "event_id": { "type": "string" },
+        "ts": { "type": "integer", "minimum": 0, "description": "Milliseconds from scenario start" },
+        "type": { "type": "string", "enum": ["place", "cancel", "modify", "trade"] },
+        "order_id": { "type": "string" },
+        "side": { "type": "string", "enum": ["bid", "ask"] },
+        "price": { "type": "number", "exclusiveMinimum": 0 },
+        "size": { "type": "number", "exclusiveMinimum": 0 },
+        "owner_id": { "type": "string" }
+      }
+    },
+    "groundTruth": {
+      "type": "object",
+      "required": ["label", "manipulation_type", "implicated_event_ids", "explanation"],
+      "additionalProperties": false,
+      "properties": {
+        "label": { "type": "string", "enum": ["clean", "manipulated"] },
+        "manipulation_type": {
+          "type": ["string", "null"],
+          "enum": ["spoofing", null],
+          "description": "Null when label is clean. Spoofing is the only typology in M1."
+        },
+        "implicated_event_ids": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Event ids that constitute the manipulation. Empty for clean scenarios."
+        },
+        "explanation": {
+          "type": "string",
+          "description": "Plain-language account of the manipulation (or why the scenario is clean). Used in the report and the miss drill-down."
+        }
+      }
+    }
+  }
+}

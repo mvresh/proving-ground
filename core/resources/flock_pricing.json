@@ -1,0 +1,15 @@
+{
+  "$comment": "FLock inference pricing in nano-USD per token (1 USD = 1e9 nano-USD). Source: FLock openclaw-plugin-flock price table, cross-checked against the live /v1/models catalog (session 2). Models rotate; treat unlisted models as cost 0 (unknown) rather than failing.",
+  "currency": "nano_usd_per_token",
+  "usd_scale": 1000000000,
+  "models": {
+    "qwen3-235b-a22b-thinking-qwfin": { "input": 230, "output": 2300 },
+    "qwen3-235b-a22b-thinking-2507": { "input": 230, "output": 2300 },
+    "qwen3-235b-a22b-instruct-2507": { "input": 700, "output": 2800 },
+    "qwen3-30b-a3b-instruct-2507": { "input": 200, "output": 800 },
+    "qwen3-30b-a3b-instruct-qmxai": { "input": 200, "output": 800 },
+    "kimi-k2-thinking": { "input": 600, "output": 2500 },
+    "deepseek-v3.2": { "input": 280, "output": 420 },
+    "minimax-m2.1": { "input": 300, "output": 1200 }
+  }
+}
