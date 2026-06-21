@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { runCoreJson, CoreError, type Attestation } from "@/lib/core";
+import { fixtures, coreUnavailable } from "@/lib/demo";
 
 export const runtime = "nodejs";
 
@@ -31,6 +32,7 @@ export async function POST(req: Request) {
     );
     return NextResponse.json({ store, attestation });
   } catch (e) {
+    if (coreUnavailable(e)) return NextResponse.json(fixtures.attest);
     const err = e as CoreError;
     return NextResponse.json(
       { error: err.message, stderr: err.stderr ?? "" },

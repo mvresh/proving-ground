@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { runCoreJson, CoreError } from "@/lib/core";
+import { fixtures, coreUnavailable } from "@/lib/demo";
 
 export const runtime = "nodejs";
 
@@ -10,10 +11,15 @@ export async function GET(req: Request) {
     const models = await runCoreJson<string[]>(["models", "--provider", provider]);
     return NextResponse.json({ provider, models });
   } catch (e) {
+    // On a host without the core, serve the precomputed catalog (real snapshot).
+    if (coreUnavailable(e)) {
+      const key = provider === "flock" ? "flock" : "stub";
+      return NextResponse.json({ provider, models: fixtures.models[key] ?? [], demo: true });
+    }
     const err = e as CoreError;
     return NextResponse.json(
       { provider, models: [], error: err.message },
-      { status: 200 }, // surface the error in the UI rather than failing the page
+      { status: 200 },
     );
   }
 }

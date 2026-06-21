@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { runCoreJson, CoreError, type Scenario, type BenchmarkResult } from "@/lib/core";
 import { meterEvalRun } from "@/lib/solvimon";
+import { fixtures, coreUnavailable } from "@/lib/demo";
 
 export const runtime = "nodejs";
 
@@ -43,6 +44,8 @@ export async function POST(req: Request) {
       seed, count, fraction, provider, scenarios, benchmark, metering,
     });
   } catch (e) {
+    // On a host without the Python core (e.g. Vercel), serve the precomputed real sample.
+    if (coreUnavailable(e)) return NextResponse.json(fixtures.run);
     const err = e as CoreError;
     return NextResponse.json(
       { error: err.message, stderr: err.stderr ?? "" },

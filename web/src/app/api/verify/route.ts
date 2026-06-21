@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { runCore, type Attestation, type VerifyResult } from "@/lib/core";
+import { fixtures, coreUnavailable } from "@/lib/demo";
 
 export const runtime = "nodejs";
 
@@ -38,6 +39,7 @@ export async function POST(req: Request) {
     // exit code 0 => verified; non-zero => tamper detected (verified:false already in result)
     return NextResponse.json({ store, result, exitCode: code, stderr: stderr.trim() });
   } catch (e) {
+    if (coreUnavailable(e)) return NextResponse.json(fixtures.verify);
     return NextResponse.json(
       { error: (e as Error).message, verified: false },
       { status: 502 },
